@@ -19,10 +19,10 @@ try:
     os.environ['OPENAI_API_KEY'] = config.OPENAI_API_KEY
 except ImportError:
     # use st secrets when running deployed app
-    PINECONE_API_KEY = os.environ['API_USER']
+    PINECONE_API_KEY = os.environ['PINECONE_API_KEY']
     PINECONE_ENV = os.environ['PINECONE_ENV']
     PINECONE_INDEX_NAME = os.environ['PINECONE_INDEX_NAME']
-    
+
 st.set_page_config(
     page_title = 'AskTALOS',
     page_icon = '☀️',
