@@ -14,11 +14,13 @@ from langchain.schema import SystemMessage, AIMessage, HumanMessage
 
 st.set_page_config(
     page_title = 'AskTALOS',
-    page_icon = ':sun:',
+    page_icon = '☀️',
     #layout = 'wide',
     menu_items = {
-        # put the actual link
-        'About': 'AskTALOS uses Retrieval Augmented Generation (RAG) over the [Evillious Chronicles Wiki](https://theevilliouschronicles.fandom.com/wiki/The_Evillious_Chronicles_Wiki). Source code & more info is available on [Github](https://github.com/)'
+        'Report a bug': 'https://github.com/kellygculpepper/AskTALOS/issues',
+        'About': '''# About AskTALOS
+        AskTALOS uses Retrieval Augmented Generation (RAG) over the [Evillious Chronicles Wiki](https://theevilliouschronicles.fandom.com/wiki/The_Evillious_Chronicles_Wiki). Source code & more info is available on [Github](https://github.com/kellygculpepper/AskTALOS).
+        '''
     }
 )
 
@@ -26,6 +28,7 @@ st.set_page_config(
 
 # openai_api_key = st.sidebar.text_input('OpenAI API Key')
 os.environ['OPENAI_API_KEY'] = config.OPENAI_API_KEY
+pinecone_index_name = config.PINECONE_INDEX_NAME
 pinecone.init(
     api_key = config.PINECONE_API_KEY,
     environment = config.PINECONE_ENV
@@ -38,20 +41,20 @@ embeddings = HuggingFaceBgeEmbeddings(
     query_instruction = 'Represent this sentence for searching relevant passages:'
 )
 
-db = Pinecone.from_existing_index('ec', embedding = embeddings)
-# adjust this? something to try to answer with as few docs as possible?
-retriever = db.as_retriever(search_kwargs={'k': 5})
+db = Pinecone.from_existing_index(pinecone_index_name, embedding = embeddings)
+# adjust this?
+retriever = db.as_retriever(search_kwargs={'k': 6})
 
 # model = ? gpt-3.5-turbo-16k or gpt-4??
-chat_model = ChatOpenAI(temperature = 0)
+chat_model = ChatOpenAI(model_name = 'gpt-4', temperature = 0)
 
-compressor = LLMChainExtractor.from_llm(OpenAI(temperature = 0))
+compressor = LLMChainExtractor.from_llm(ChatOpenAI(model_name = 'gpt-4', temperature = 0))
 compression_retriever = ContextualCompressionRetriever(base_compressor=compressor, base_retriever=retriever)
 
 tool = create_retriever_tool(
     compression_retriever,
-    'search_evillious_docs',
-    'Searches and returns documents about the Evillious Chronicles.'
+    'search_evillious_articles',
+    'Searches and returns sections of Wiki articles about the Evillious Chronicles.'
 )
 
 tools = [tool]
@@ -60,15 +63,9 @@ memory = AgentTokenBufferMemory(memory_key='history', llm=chat_model)
 
 system_message = SystemMessage(
     content = (
-        "You are a helpful chatbot that answers questions about the Evillious Chronicles. "
-        "The Evillious Chronicles is a Japanese multimedia dark fantasy series by mothy (a.k.a. Akuno-P). "
-        "It includes Vocaloid songs, light novels, manga, and spin-offs. "
-        "Unless otherwise specified, questions are probably about the Evillious Chronicles. "
-        #"You are named after TALOS, a robot character from the series. If the user asks about TALOS, assume they mean the character unless you can infer they mean you. "
-        # If the user mentions TALOS, you must infer whether they mean you or the character. If in doubt, assume they mean the character.
-        "Feel free to use the tools provided to look up information as needed. "
-        "If you cannot determine an answer using ONLY the information provided, just say you don't know. "
-        # 'You are part of a web app called AskTALOS. The app was developed by Kelly Culpepper and has source code at [GITHUB]. All your information about the Evillious Chronicles is sourced from the fan wiki, https://theevilliouschronicles.fandom.com/wiki/The_Evillious_Chronicles_Wiki.'
+        "You are a helpful chatbot that answers questions about the Evillious Chronicles, a Japanese multimedia dark fantasy series by mothy (aka Akuno-P). "
+        "Feel free to use the tools provided to look up information as needed. Use this information as context to answer the question. "
+        "If you don't know the answer, just say that you don't know. "
     )
 )
 
@@ -87,10 +84,9 @@ for msg in st.session_state.messages:
         st.chat_message('user', avatar = '👤').write(msg.content)
     memory.chat_memory.add_message(msg)
 
-if prompt := st.chat_input(placeholder=starter_message):
-    st.chat_message('user').write(prompt)
-    with st.chat_message('assistant'):
-        #st_callback = StreamlitCallbackHandler(st.container())
+if prompt := st.chat_input(placeholder= 'Send a message'):
+    st.chat_message('user', avatar = '👤').write(prompt)
+    with st.chat_message('assistant', avatar = '🦇'):
         response = agent_executor(
             {'input': prompt, 'history': st.session_state.messages},
             include_run_info=True,
