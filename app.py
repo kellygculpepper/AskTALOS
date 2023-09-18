@@ -1,4 +1,3 @@
-import config
 import os
 import streamlit as st
 from langchain.llms import OpenAI
@@ -12,6 +11,18 @@ from langchain.retrievers.document_compressors import LLMChainExtractor
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain.schema import SystemMessage, AIMessage, HumanMessage
 
+try:
+    import config
+    PINECONE_API_KEY = config.PINECONE_API_KEY
+    PINECONE_ENV = config.PINECONE_ENV
+    PINECONE_INDEX_NAME = config.PINECONE_INDEX_NAME
+    os.environ['OPENAI_API_KEY'] = config.OPENAI_API_KEY
+except ImportError:
+    # use st secrets when running deployed app
+    PINECONE_API_KEY = os.environ['API_USER']
+    PINECONE_ENV = os.environ['PINECONE_ENV']
+    PINECONE_INDEX_NAME = os.environ['PINECONE_INDEX_NAME']
+    
 st.set_page_config(
     page_title = 'AskTALOS',
     page_icon = '☀️',
@@ -27,11 +38,9 @@ st.set_page_config(
 '# AskTALOS'
 
 # openai_api_key = st.sidebar.text_input('OpenAI API Key')
-os.environ['OPENAI_API_KEY'] = config.OPENAI_API_KEY
-pinecone_index_name = config.PINECONE_INDEX_NAME
 pinecone.init(
-    api_key = config.PINECONE_API_KEY,
-    environment = config.PINECONE_ENV
+    api_key = PINECONE_API_KEY,
+    environment = PINECONE_ENV
 )
 
 embeddings = HuggingFaceBgeEmbeddings(
@@ -41,7 +50,7 @@ embeddings = HuggingFaceBgeEmbeddings(
     query_instruction = 'Represent this sentence for searching relevant passages:'
 )
 
-db = Pinecone.from_existing_index(pinecone_index_name, embedding = embeddings)
+db = Pinecone.from_existing_index(PINECONE_INDEX_NAME, embedding = embeddings)
 # adjust this?
 retriever = db.as_retriever(search_kwargs={'k': 6})
 
