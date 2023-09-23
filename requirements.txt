@@ -11,4 +11,4 @@ pipreqs==0.4.13
 requests==2.31.0
 requests-file==1.5.1
 requests-toolbelt==1.0.0
-os=7.6.0
+os==7.6.0
