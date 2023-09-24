@@ -12,3 +12,4 @@ requests==2.31.0
 requests-file==1.5.1
 requests-toolbelt==1.0.0
 openai==0.28.0
+tiktoken==0.5.1
