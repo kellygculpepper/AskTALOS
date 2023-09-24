@@ -43,25 +43,27 @@ pinecone.init(
     environment = PINECONE_ENV
 )
 
-embeddings = HuggingFaceBgeEmbeddings(
+
+@st.cache_resource(ttl = "1h")
+def configure_retriever():
+    embeddings = HuggingFaceBgeEmbeddings(
     model_name = 'BAAI/bge-large-en-v1.5',
     model_kwargs = {'device': 'cpu'},
     encode_kwargs = {'normalize_embeddings': True},
     query_instruction = 'Represent this sentence for searching relevant passages:'
-)
+    )
 
-db = Pinecone.from_existing_index(PINECONE_INDEX_NAME, embedding = embeddings)
-# adjust this?
-retriever = db.as_retriever(search_kwargs={'k': 6})
+    db = Pinecone.from_existing_index(PINECONE_INDEX_NAME, embedding = embeddings)
+    retriever = db.as_retriever(search_kwargs = {'k': 6})
+    compressor = LLMChainExtractor.from_llm(ChatOpenAI(model_name = 'gpt-4', temperature = 0))
+    compression_retriever = ContextualCompressionRetriever(base_compressor=compressor, base_retriever=retriever)
+    return compression_retriever
 
-# model = ? gpt-3.5-turbo-16k or gpt-4??
+
 chat_model = ChatOpenAI(model_name = 'gpt-4', temperature = 0)
 
-compressor = LLMChainExtractor.from_llm(ChatOpenAI(model_name = 'gpt-4', temperature = 0))
-compression_retriever = ContextualCompressionRetriever(base_compressor=compressor, base_retriever=retriever)
-
 tool = create_retriever_tool(
-    compression_retriever,
+    configure_retriever(),
     'search_evillious_articles',
     'Searches and returns sections of Wiki articles about the Evillious Chronicles.'
 )
